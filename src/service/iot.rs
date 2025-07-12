@@ -18,7 +18,9 @@ pub struct IotClient {
 
 impl IotClient {
     pub fn is_device_compatible(&self, device: &DeviceEntry) -> bool {
-        device.device_ext.device_settings.topic.is_some()
+        device.device_ext.device_settings.topic.is_some() || (
+            device.device_ext.device_settings.gateway_info.is_some() &&
+            device.device_ext.device_settings.gateway_info.clone().unwrap().topic.is_some())
     }
 
     pub async fn request_status_update(&self, device: &DeviceEntry) -> anyhow::Result<()> {

@@ -81,11 +81,11 @@ pub struct UndocApiArguments {
     pub govee_password: Option<String>,
 
     /// Where to store the AWS IoT key file.
-    #[arg(long, global = true, default_value = "/dev/shm/govee.iot.key")]
+    #[arg(long, global = true, default_value = "govee.iot.key")]
     pub govee_iot_key: PathBuf,
 
     /// Where to store the AWS IoT certificate file.
-    #[arg(long, global = true, default_value = "/dev/shm/govee.iot.cert")]
+    #[arg(long, global = true, default_value = "govee.iot.cert")]
     pub govee_iot_cert: PathBuf,
 
     /// Where to find the AWS root CA certificate
@@ -144,6 +144,10 @@ impl GoveeUndocumentedApi {
     pub fn new<E: Into<String>, P: Into<String>>(email: E, password: P) -> Self {
         let email = email.into();
         let password = password.into();
+        println!(
+            "{email} {password}",
+            email = email,
+            password = password);
         let client_id = Uuid::new_v5(&Uuid::NAMESPACE_DNS, email.as_bytes());
         let client_id = format!("{}", client_id.simple());
         Self {
@@ -766,8 +770,12 @@ pub struct DeviceEntry {
 
 impl DeviceEntry {
     pub fn device_topic(&self) -> anyhow::Result<&str> {
-        self.device_ext
+        if self.device_ext.device_settings.gateway_info.is_some() {
+            self.device_ext
             .device_settings
+            .gateway_info
+            .as_ref()
+            .unwrap()
             .topic
             .as_ref()
             .map(|t| t.as_str())
@@ -777,6 +785,19 @@ impl DeviceEntry {
                     id = self.device
                 )
             })
+        } else {
+            self.device_ext
+                .device_settings
+                .topic
+                .as_ref()
+                .map(|t| t.as_str())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "device {id} has no topic, is it a BLE-only device?",
+                        id = self.device
+                    )
+                })
+        }     
     }
 }
 
@@ -804,6 +825,7 @@ pub struct DeviceSettings {
     pub wifi_mac: Option<String>,
     pub pact_type: Option<u32>,
     pub pact_code: Option<u32>,
+    pub normal_push_on_off: Option<bool>,
     pub dsp_version_soft: Option<JsonValue>,
     pub wifi_soft_version: Option<String>,
     pub wifi_hard_version: Option<String>,
@@ -848,6 +870,9 @@ pub struct DeviceSettings {
     /// millisecond timestamp
     pub time: Option<u64>,
     pub wifi_level: Option<i64>,
+    #[serde(deserialize_with = "boolean_int", default)]
+    pub delay_push_time: bool,
+    pub sno: Option<i64>,
 
     pub pm25_min: Option<i64>,
     pub pm25_max: Option<i64>,
@@ -856,8 +881,12 @@ pub struct DeviceSettings {
     /// `{"sub_0": {"name": "Device Name"}}`
     pub sub_devices: Option<JsonValue>,
     pub bd_type: Option<i64>,
+    pub battery_warning: Option<bool>,
     #[serde(deserialize_with = "boolean_int", default)]
     pub filter_expire_on_off: bool,
+    pub power_save_mode_state: Option<bool>,
+    pub gateway_id: Option<i64>,
+    pub gateway_info: Option<Box<DeviceSettings>>,
 
     /// eg: Glide Hexa. Value is base64 encoded data
     pub shapes: Option<String>,

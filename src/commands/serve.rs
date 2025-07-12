@@ -184,7 +184,9 @@ impl ServeCommand {
             }
             if let Some(undoc) = &device.undoc_device_info {
                 let room = &undoc.room_name;
-                let supports_iot = undoc.entry.device_ext.device_settings.topic.is_some();
+                let supports_iot = undoc.entry.device_ext.device_settings.topic.is_some() || (
+                    undoc.entry.device_ext.device_settings.gateway_info.is_some() &&
+                    undoc.entry.device_ext.device_settings.gateway_info.clone().unwrap().topic.is_some());
                 let ble_only = undoc.entry.device_ext.device_settings.wifi_name.is_none();
                 log::info!(
                     "  Undoc: room={room:?} supports_iot={supports_iot} ble_only={ble_only}"
