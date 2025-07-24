@@ -873,6 +873,7 @@ pub struct DeviceSettings {
     #[serde(deserialize_with = "boolean_int", default)]
     pub delay_push_time: bool,
     pub sno: Option<i64>,
+    pub index: Option<u64>,
 
     pub pm25_min: Option<i64>,
     pub pm25_max: Option<i64>,

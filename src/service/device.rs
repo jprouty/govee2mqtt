@@ -423,6 +423,8 @@ impl Device {
         let device_type = self.device_type();
         match (device_type, self.sku.as_str()) {
             (_, "H7160") => false,
+            (_, "H5109") => false,
+            (_, "H5042") => false,
             (DeviceType::Humidifier, _) => true,
             (DeviceType::Light, _) => false,
             (DeviceType::Kettle, _) => true,
@@ -435,12 +437,15 @@ impl Device {
     }
 
     pub fn pollable_via_iot(&self) -> bool {
+        println!("pollable_via_iot: {sku} {supported}", sku=self.sku.as_str(), supported=self.iot_api_supported());
         if !self.iot_api_supported() {
             return false;
         }
         let device_type = self.device_type();
         match (device_type, self.sku.as_str()) {
             (_, "H7160") => true,
+            (_, "H5109") => true,
+            (_, "H5042") => true,
             (DeviceType::Light, _) => true,
             _ => false,
         }
