@@ -144,10 +144,6 @@ impl GoveeUndocumentedApi {
     pub fn new<E: Into<String>, P: Into<String>>(email: E, password: P) -> Self {
         let email = email.into();
         let password = password.into();
-        println!(
-            "{email} {password}",
-            email = email,
-            password = password);
         let client_id = Uuid::new_v5(&Uuid::NAMESPACE_DNS, email.as_bytes());
         let client_id = format!("{}", client_id.simple());
         Self {
@@ -615,9 +611,9 @@ pub struct OneClickComponent {
     pub one_clicks: Vec<OneClick>,
 }
 
+// #[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct OneClick {
     pub name: String,
     pub plan_type: i64,
@@ -769,35 +765,23 @@ pub struct DeviceEntry {
 }
 
 impl DeviceEntry {
+    pub fn has_iot_topic(&self) -> bool {
+        self.device_ext.device_settings.topic.is_some() || (
+            self.device_ext.device_settings.gateway_info.is_some() &&
+            self.device_ext.device_settings.gateway_info.as_ref().unwrap().topic.is_some())
+    }
+
     pub fn device_topic(&self) -> anyhow::Result<&str> {
-        if self.device_ext.device_settings.gateway_info.is_some() {
-            self.device_ext
-            .device_settings
-            .gateway_info
-            .as_ref()
-            .unwrap()
-            .topic
-            .as_ref()
-            .map(|t| t.as_str())
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "device {id} has no topic, is it a BLE-only device?",
-                    id = self.device
-                )
-            })
-        } else {
-            self.device_ext
-                .device_settings
-                .topic
-                .as_ref()
-                .map(|t| t.as_str())
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "device {id} has no topic, is it a BLE-only device?",
-                        id = self.device
-                    )
-                })
-        }     
+        if !self.has_iot_topic() {
+            return Err(anyhow::anyhow!(
+                "device {id} has no topic, is it a BLE-only device?",
+                id = self.device
+            ));
+        }
+        if self.device_ext.device_settings.topic.is_some() {
+            return Ok(self.device_ext.device_settings.topic.as_ref().unwrap().as_str());
+        }
+        Ok(self.device_ext.device_settings.gateway_info.as_ref().unwrap().topic.as_ref().unwrap().as_str())
     }
 }
 
@@ -874,6 +858,9 @@ pub struct DeviceSettings {
     pub delay_push_time: bool,
     pub sno: Option<i64>,
     pub index: Option<u64>,
+    pub open_push: Option<bool>,
+    pub push_state: Option<bool>,
+    pub header: Option<String>,
 
     pub pm25_min: Option<i64>,
     pub pm25_max: Option<i64>,
@@ -887,6 +874,8 @@ pub struct DeviceSettings {
     pub filter_expire_on_off: bool,
     pub power_save_mode_state: Option<bool>,
     pub gateway_id: Option<i64>,
+    pub gateway_version_hard: Option<String>,
+    pub gateway_version_soft: Option<String>,
     pub gateway_info: Option<Box<DeviceSettings>>,
 
     /// eg: Glide Hexa. Value is base64 encoded data
@@ -913,6 +902,8 @@ pub struct ExtResources {
 pub struct LastDeviceData {
     pub online: Option<bool>,
     pub bind: Option<bool>,
+    pub gwonline: Option<bool>,
+    pub read: Option<bool>,
 
     pub tem: Option<i64>,
     pub hum: Option<i64>,

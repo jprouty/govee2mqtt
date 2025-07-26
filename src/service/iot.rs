@@ -1,4 +1,4 @@
-use crate::ble::{Base64HexBytes, GoveeBlePacket, HumidifierAutoMode, NotifyHumidifierMode};
+use crate::ble::{Base64HexBytes, GoveeBlePacket, HumidifierAutoMode, NotifyHumidifierMode, NotifyTemperatureParams};
 use crate::lan_api::{DeviceColor, DeviceStatus};
 use crate::platform_api::from_json;
 use crate::service::state::StateHandle;
@@ -17,12 +17,6 @@ pub struct IotClient {
 }
 
 impl IotClient {
-    pub fn is_device_compatible(&self, device: &DeviceEntry) -> bool {
-        device.device_ext.device_settings.topic.is_some() || (
-            device.device_ext.device_settings.gateway_info.is_some() &&
-            device.device_ext.device_settings.gateway_info.clone().unwrap().topic.is_some())
-    }
-
     pub async fn request_status_update(&self, device: &DeviceEntry) -> anyhow::Result<()> {
         let device_topic = device.device_topic()?;
 
@@ -443,6 +437,15 @@ async fn run_iot_subscriber(
                                                 device.set_humidifier_work_mode_and_param(
                                                     mode, param,
                                                 );
+                                            }
+                                            GoveeBlePacket::NotifyTemperature(
+                                                NotifyTemperatureParams { temperature_c_x100 },
+                                            ) => {
+                                                let temp_c = temperature_c_x100 as f32 / 100.0;
+                                                log::info!(
+                                                    "Decoded temp: {temp_c}C for {sku}"
+                                                );
+                                                // device.set_temperature(temperature_c_x100);
                                             }
                                             GoveeBlePacket::Generic(_) => {
                                                 // Ignore packets that we can't decode

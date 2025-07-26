@@ -188,7 +188,7 @@ impl State {
     pub async fn poll_iot_api(self: &Arc<Self>, device: &Device) -> anyhow::Result<bool> {
         if let Some(iot) = self.get_iot_client().await {
             if let Some(info) = device.undoc_device_info.clone() {
-                if iot.is_device_compatible(&info.entry) {
+                if info.entry.has_iot_topic() {
                     let device_state = device.device_state();
                     log::info!("requesting update via IoT MQTT {device} {device_state:?}");
                     match iot

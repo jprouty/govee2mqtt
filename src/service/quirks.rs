@@ -255,10 +255,12 @@ fn load_quirks() -> HashMap<String, Quirk> {
             .with_platform_temperature_sensor_units(TemperatureUnits::Fahrenheit)
             .with_platform_humidity_sensor_units(HumidityUnits::RelativePercent),
         Quirk::thermometer("H5109")
-            .with_platform_temperature_sensor_units(TemperatureUnits::Fahrenheit)
+            .with_broken_platform()
+            .with_platform_temperature_sensor_units(TemperatureUnits::CelsiusTimes100)
             .with_iot_api_support(true),
         Quirk::thermometer("H5042")
-            .with_platform_temperature_sensor_units(TemperatureUnits::Fahrenheit)
+            .with_broken_platform()
+            .with_platform_temperature_sensor_units(TemperatureUnits::CelsiusTimes100)
             .with_iot_api_support(true),
         Quirk::thermometer("H5179")
             .with_platform_temperature_sensor_units(TemperatureUnits::Fahrenheit)
@@ -339,6 +341,5 @@ fn load_quirks() -> HashMap<String, Quirk> {
 }
 
 pub fn resolve_quirk(sku: &str) -> Option<&'static Quirk> {
-    println!("resolve_quirk: {sku}", sku=sku);
     QUIRKS.get(sku)
 }

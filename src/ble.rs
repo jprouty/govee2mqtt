@@ -224,6 +224,16 @@ impl PacketManager {
             b,
         ));
         all_codecs.push(PacketCodec::new(
+            &["H5042"],
+            NotifyTemperatureParams::encode,
+            NotifyTemperatureParams::decode,
+        ));
+        all_codecs.push(PacketCodec::new(
+            &["H5042"],
+            NotifyTemperatureSettingsParams::encode,
+            NotifyTemperatureSettingsParams::decode,
+        ));
+        all_codecs.push(PacketCodec::new(
             &["Generic:Light"],
             SetSceneCode::encode,
             SetSceneCode::decode,
@@ -261,6 +271,7 @@ impl DecodePacketParam for u8 {
     }
 }
 
+// u16 as Little Endian - least significant byte first.
 impl DecodePacketParam for u16 {
     fn decode_param<'a>(&mut self, data: &'a [u8]) -> anyhow::Result<&'a [u8]> {
         let lo = *data.get(0).ok_or_else(|| anyhow!("EOF"))?;
@@ -422,6 +433,59 @@ pub struct SetDevicePower {
     pub on: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct NotifyTemperatureParams {
+    // Temperature in centicelcius (ie: hundredths of a Celsius).
+    pub temperature_c_x100: i16,
+}
+
+impl NotifyTemperatureParams {
+    fn encode(&self) -> anyhow::Result<Vec<u8>> {
+        anyhow::bail!("NotifyTemperatureParams::decode is not implemented");
+    }
+
+    fn decode(data: &[u8]) -> anyhow::Result<GoveeBlePacket> {
+        anyhow::ensure!(data.get(0) == Some(&0xaa));
+        anyhow::ensure!(data.get(1) == Some(&0x04));
+
+        let lo = *data.get(13).ok_or_else(|| anyhow!("EOF"))?;
+        let hi = *data.get(14).ok_or_else(|| anyhow!("EOF"))?;
+
+        Ok(GoveeBlePacket::NotifyTemperature(NotifyTemperatureParams {
+            temperature_c_x100: ((hi as i16) << 8) | lo as i16,
+        }))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct NotifyTemperatureSettingsParams {
+    // Temperature in centicelcius (ie: hundredths of a Celsius).
+    pub alarm_low_temperature_c_x100: i16,
+    pub alarm_high_temperature_c_x100: i16,
+}
+
+impl NotifyTemperatureSettingsParams {
+    fn encode(&self) -> anyhow::Result<Vec<u8>> {
+        anyhow::bail!("NotifyTemperatureParams::decode is not implemented");
+    }
+
+    fn decode(data: &[u8]) -> anyhow::Result<GoveeBlePacket> {
+        anyhow::ensure!(data.get(0) == Some(&0xaa));
+        anyhow::ensure!(data.get(1) == Some(&0x08));
+
+        // Temperatures in Big Endian (unlike NotifyTemperatureParams)
+        let alarm_low_lo = *data.get(6).ok_or_else(|| anyhow!("EOF"))?;
+        let alarm_low_hi = *data.get(5).ok_or_else(|| anyhow!("EOF"))?;
+        let alarm_high_lo = *data.get(8).ok_or_else(|| anyhow!("EOF"))?;
+        let alarm_high_hi = *data.get(7).ok_or_else(|| anyhow!("EOF"))?;
+
+        Ok(GoveeBlePacket::NotifyTemperatureSettings(NotifyTemperatureSettingsParams {
+            alarm_low_temperature_c_x100: ((alarm_low_hi as i16) << 8) | alarm_low_lo as i16,
+            alarm_high_temperature_c_x100: ((alarm_high_hi as i16) << 8) | alarm_high_lo as i16,
+        }))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GoveeBlePacket {
     Generic(HexBytes),
@@ -433,6 +497,8 @@ pub enum GoveeBlePacket {
     SetHumidifierMode(SetHumidifierMode),
     NotifyHumidifierAutoMode(HumidifierAutoMode),
     NotifyHumidifierNightlight(NotifyHumidifierNightlightParams),
+    NotifyTemperature(NotifyTemperatureParams),
+    NotifyTemperatureSettings(NotifyTemperatureSettingsParams),
 }
 
 #[derive(Debug)]
@@ -531,6 +597,27 @@ mod test {
             GoveeBlePacket::SetHumidifierMode(SetHumidifierMode {
                 mode: 1,
                 param: 0x20
+            })
+        );
+
+        assert_eq!(
+            MGR.decode_for_sku(
+                "H5042",
+                &[0xaa, 0x04, 0, 0x01, 0, 0x64, 0x19, 0x14, 0xd7, 0x68, 0x81, 0xb4, 0x78, 0x01, 0x08, 0, 0, 0, 0, 0x3d]
+            ),
+            GoveeBlePacket::NotifyTemperature(NotifyTemperatureParams {
+                temperature_c_x100: 2049,
+            })
+        );
+
+        assert_eq!(
+            MGR.decode_for_sku(
+                "H5042",
+                &[0xaa, 0x08, 0, 0, 0x01, 0xf8, 0x30, 0x0f, 0xa0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xc4]
+            ),
+            GoveeBlePacket::NotifyTemperatureSettings(NotifyTemperatureSettingsParams {
+                alarm_low_temperature_c_x100: -2000,
+                alarm_high_temperature_c_x100: 4000,
             })
         );
 
